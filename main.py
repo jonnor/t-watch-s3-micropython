@@ -18,12 +18,17 @@ def main():
     bl = Pin(45,Pin.OUT)
     bl.on()
 
+    print("Backlight on")
+
+    fb_width = 240
+    fb_height = 240
     # Our display does not have a MISO pin, but the MicroPython
     # SPI implementation does not allow to avoid specifying one, so
     # we use just a not used pin in the device.
+    spi = SPI(1, baudrate=40000000, phase=0, polarity=1, sck=18, mosi=13, miso=12)
     display = st7789_ext.ST7789(
-        SPI(1, baudrate=40000000, phase=0, polarity=1, sck=18, mosi=13, miso=37),
-        240, 240,
+        spi,
+        fb_width, fb_height,
         reset=False,
         dc=Pin(38, Pin.OUT),
         cs=Pin(12, Pin.OUT),
