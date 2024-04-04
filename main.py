@@ -6,7 +6,11 @@ from machine import Pin, SPI
 import st7789_base, st7789_ext
 import time
 from axp2101 import AXP2101
-from haptic_motor import HAPTIC_MOTOR 
+import framebuf
+
+from microfont import MicroFont
+
+font = MicroFont("victor:B:32.mfnt", cache_index=False)
 
 def main():
     # Setup the PMU chip.
@@ -36,24 +40,23 @@ def main():
     display.init(landscape=False,mirror_y=True,mirror_x=True,inversion=True)
     display.enable_framebuffer()
 
-    # vibrate using effect 14
-    motor = HAPTIC_MOTOR(14)	
-    motor.vibrate()	    
+    print("Display ON")
 
     print("displaying random colors")
     while True:
         start = time.ticks_ms()
-        display.fb.fill(
-            display.fb_color(
-                random.getrandbits(8),
-                random.getrandbits(8),
-                random.getrandbits(8),
-            ),
-        )
-        for i in range(250):
-            display.fb.pixel(random.randint(0,240),
-                             random.randint(0,240),
-                             display.fb_color(255,255,255))
+        bg_color = display.fb_color(0, 0, 0)
+        display.fb.fill(bg_color)
+
+        text_color = display.fb_color(255, 255, 255)
+        #display.upscaled_text(00, 00, '123', fgcolor=b'0xffffff', upscaling=4)
+
+        fb = display.fb
+        color = 0xffffff # Color must be in the framebuffer color mode format.
+        angle = 0
+        text = str(int(time.ticks_ms()/1000))
+        font.write(text, fb, framebuf.RGB565, fb_width, fb_height, 150, 150, color,
+                   rot=angle, x_spacing=0, y_spacing=0)
 
         display.show()
         elapsed = time.ticks_ms() - start
