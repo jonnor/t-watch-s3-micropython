@@ -1,5 +1,8 @@
 # Example program for the T-WATCH S3
 
+import emltrees
+import array
+
 import random
 
 from machine import Pin, SPI
@@ -12,6 +15,17 @@ from microfont import MicroFont
 
 font = MicroFont("victor:B:32.mfnt", cache_index=False)
 
+def test_trees():
+
+    model = emltrees.new(5, 30, 5)
+    with open('xor_model.csv') as f:
+        emltrees.load_model(model, f)
+
+    a = array.array('f', [0.0, 1.0])
+    out = model.predict(a)
+    print(out)
+
+
 def main():
     # Setup the PMU chip.
     twatch_pmu = AXP2101()
@@ -23,6 +37,8 @@ def main():
     bl.on()
 
     print("Backlight on")
+
+    test_trees()
 
     fb_width = 240
     fb_height = 240
