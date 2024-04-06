@@ -3,6 +3,7 @@
 import array
 import random
 import time
+import machine
 from machine import Pin, SPI, SoftI2C
 import framebuf
 
@@ -12,6 +13,8 @@ import bma423
 
 import emltrees
 from microfont import MicroFont
+
+from utils import dir_exists, isoformat
 
 font = MicroFont("victor:B:32.mfnt", cache_index=False)
 
@@ -69,12 +72,12 @@ def update_display(display, text):
     fb = display.fb
     color = 0xffffff # Color must be in the framebuffer color mode format.
     angle = 0
-    font.write(text, fb, framebuf.RGB565, fb_width, fb_height, 150, 150, color,
+    font.write(text, fb, framebuf.RGB565, fb_width, fb_height, 5, 50, color,
                rot=angle, x_spacing=0, y_spacing=0)
 
     display.show()
     elapsed = time.ticks_ms() - start
-    print("Ticks per screen fill:", elapsed)
+    print("screen-update", elapsed)
 
 
 def decode_acceleration(sensor, inp, out):
@@ -101,22 +104,27 @@ def decode_acceleration(sensor, inp, out):
         out[(sample_no*axes)+2] = acc_z
     
 
+def human_format_time(dt):
+    # input is (year, month, day, weekday, hour, minute, second, subsecond)
+    (year, month, day, weekday, hour, minute, second, subsecond) = dt
+    s = "%02d.%02d.%04d\n%02d:%02d:%02d" % (day, month, year, hour, minute, second)
+    return s
+
+
 def main():
 
     test_trees() # XXX: fails if done after setup!?
 
     pmu, display = setup()
-    
-    print("[AXP2101] Battery voltage is", pmu.get_battery_voltage())
-    print("Display ON")
+    print("setup-done")
 
-    #rtc = machine.RTC()
+    rtc = machine.RTC()
     
     # accelerometer
     i2c = SoftI2C(sda=10,scl=11)
     sensor = bma423.BMA423(i2c, addr=0x19)
 
-    sensor.set_accelerometer_freq(50)
+    sensor.set_accelerometer_freq(100)
     sensor.fifo_enable()
     sensor.fifo_clear()
 
@@ -126,7 +134,10 @@ def main():
 
     while True:
 
-        text = str(int(time.ticks_ms()/1000))
+        dt = rtc.datetime()
+        iso_time_str = isoformat(dt)
+        time_str = human_format_time(dt)
+
         #acc = sensor.get_xyz()
         t = 0
         t = sensor.get_temperature()
@@ -145,14 +156,28 @@ def main():
             decode_dur = time.ticks_diff(time.ticks_ms(), read_start)
             x,y,z = accel_array[0:3]
 
-            print('fifo-read', read_start/1000, fifo_level, read_dur, decode_dur,
-                  '{0:.2f},{1:.2f},{2:.2f}'.format(x, y, z))
+            acc = '{0:.2f},{1:.2f},{2:.2f}'.format(x, y, z)
+            print('fifo-read', read_start/1000, fifo_level, read_dur, decode_dur)
             
-
-        #print('set text', text)
-        #update_display(display, text)
+            battery_voltage = pmu.get_battery_voltage() / 1000.0
+            
+            text = time_str + '\n' + acc + '\n' + 'batt: {0:.2f}V'.format(battery_voltage)
+            update_display(display, text)
     
         # Wait
-        time.sleep(0.10)
+        time.sleep_ms(100)
+        #machine.lightsleep(100)
+
+    
+    # TODO: support logging app state to FLASH
+    #log_state(i2c, t)
+    
+    # TODO: support
+    #path = data_dir + '/acceleration-'+t+'.csv'
+    #with open(path, 'w') as f:
+    #    write_buffer(accel_buffer, f)
+    #print('buffer-write-end')
+
+    
 
 main()
